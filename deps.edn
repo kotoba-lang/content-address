@@ -12,4 +12,13 @@
  ;; that could not run returning the same value as a check that passed.
  ;;
  ;;   nbb --classpath src:test test/run_tests.cljs
- }
+ ;;
+ ;; The compiler is dev-only and must not reach a consumer: `:kir` compiles
+ ;; kotoba/address_core.kotoba into the artifact this library ships. What a
+ ;; consumer gets is the artifact plus kotoba.kir, the interpreter.
+ :aliases
+ {:kir {:extra-paths ["tools"]
+        :extra-deps {io.github.kotoba-lang/amu
+                     {:git/url "https://github.com/kotoba-lang/amu.git"
+                      :git/sha "b88cb6c0f276ab8f98bd2b62adeef0ae5ec7ffcd"}}
+        :main-opts ["-m" "emit-kir"]}}}

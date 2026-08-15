@@ -1,7 +1,16 @@
 (ns run-tests
-  "nbb entry point: `nbb --classpath src:test test/run_tests.cljs`."
+  "nbb entry point.
+
+  The oracle parity test needs the KIR interpreter and the shipped artifact:
+
+    nbb --classpath src:test:resources:../kotoba-kir/src test/run_tests.cljs
+
+  Without kotoba-kir on the classpath this namespace fails to load rather
+  than quietly running the pure tests alone — a parity test that silently
+  did not run is the failure mode this repository keeps guarding against."
   (:require [cljs.test :refer [run-tests]]
-            [content-address.core-test]))
+            [content-address.core-test]
+            [content-address.oracle-test]))
 
 (defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
   (println "\ntests" (:test m) "assertions" (+ (:pass m) (:fail m) (:error m))
@@ -9,4 +18,4 @@
   (when-not (cljs.test/successful? m)
     (set! (.-exitCode js/process) 1)))
 
-(run-tests 'content-address.core-test)
+(run-tests 'content-address.core-test 'content-address.oracle-test)

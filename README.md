@@ -95,7 +95,11 @@ itself:
   `kotobase.net`, re-hashed, and the CID it is stored under reproduced exactly.
 
 ```bash
-nbb --classpath src:test test/run_tests.cljs   # 10 tests, 49 assertions, no network
+# 18 tests / 270 assertions, no network. The interpreter paths are not
+# optional — see "The decision core" below for why the runner refuses to
+# start without them.
+nbb --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
+    test/run_tests.cljs
 ```
 
 ## Runtime
@@ -104,7 +108,35 @@ Portable `.cljc`, ClojureScript/nbb first (that is where the appview build
 steps run), JVM supported through the same source. The only platform-specific
 namespace is `content-address.digest`.
 
-`core.cljc` is pure and its decisions are scalar — `raw-cid?`,
-`same-object?`, `addressed?`, `refusals` — so it is a candidate for
-extraction into a `.kotoba` decision core with a parity test. That has not
-been done; it is not claimed.
+## The decision core
+
+The judgements — is this a raw CID, are these two CIDs one object, is the
+archive going to refuse this — are written a second time in
+[`kotoba/address_core.kotoba`](kotoba/address_core.kotoba) and shipped
+compiled as `resources/content_address/address_core.kir.edn`.
+
+They are decidable from a CID *string* and two integers, with no collections
+and no capability, which is exactly what belongs in a decision core. The
+octet arithmetic (base32, sha2-256, the multihash header) stays in
+`core.cljc`, where collections belong.
+
+Two implementations of one decision is a mirror, and a mirror is only honest
+while something fails when the halves disagree:
+
+```bash
+# 18 tests / 270 assertions. Fails to LOAD without the interpreter,
+# rather than quietly running the pure tests alone.
+nbb --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
+    test/run_tests.cljs
+
+clojure -M:kir      # regenerate the artifact after editing the .kotoba
+```
+
+Checked by breaking it: `digest-start` 7 → 8, recompiled, 34 failures;
+restored, 0. A parity test that has never been red has not been tested.
+
+`core.cljc` still computes — it does not call the guest — because a runtime
+dependency on the interpreter would land on every appview build step that
+uses this library, and that ergonomics is what made it adoptable. The parity
+test is what makes that safe, so it is not optional: it runs on the same
+command as everything else.
