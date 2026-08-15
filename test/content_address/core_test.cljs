@@ -133,6 +133,22 @@
     (is (= 11 (:size a)))
     (is (= (archive/address "hello world") (archive/address (digest/->octets "hello world"))))))
 
+(deftest both-manifest-shapes-are-read
+  ;; Found the hard way, 2026-08-15: a reader that only understood the bare
+  ;; map called 50 of 155 real manifests "unreadable" and the audit exited 2.
+  ;; Silence looked like a verdict.
+  (let [tx-data [{:db/id -1 :kotoba.app/name "moyoshi" :kotoba.app/version "0.3.0"}]]
+    (is (= 1 (count (ca/entities tx-data))))
+    (is (= 1 (count (ca/entities addressed-manifest))))
+    (is (= [] (ca/entities "not edn we understand")))
+    (is (= [] (ca/entities nil)))
+    (is (not (ca/file-addressed? tx-data)))
+    (is (ca/file-addressed? [{:db/id -1 :kotoba.app/bundle-cid app-bundle-cid}]))
+    (is (ca/file-addressed? addressed-manifest))
+    (is (= app-bundle-cid (:bundle-cid (ca/file-address-of addressed-manifest))))
+    (is (= app-bundle-cid (:bundle-cid (ca/file-address-of
+                                        [{:db/id -1 :kotoba.app/bundle-cid app-bundle-cid}]))))))
+
 (deftest record-address-keeps-location-out-of-the-protocol
   (let [m (ca/record-address {:kotoba.app/id "x"}
                              {:bundle-cid app-bundle-cid

@@ -64,8 +64,21 @@
 
 ;; ------------------------------------------------------------------ publish
 
-(defn- write-manifest! [manifest-path {:keys [cid origin size put-status get-status]}]
-  (let [record (ca/record-address (read-edn manifest-path)
+(defn- seed-manifest
+  "The manifest to record into: the existing one, or a new one for `--id`.
+
+  A missing manifest is not silently invented — `--id` has to say who this
+  application is, because an appview with no identity of its own would get a
+  content address that means nothing to a reader."
+  [manifest-path id]
+  (cond
+    (.existsSync fs manifest-path) (read-edn manifest-path)
+    (str/blank? (str id)) (throw (ex-info "manifest does not exist; pass --id <app-id>"
+                                          {:path manifest-path}))
+    :else {:kotoba.app/id id :kotoba.app/kind "appview"}))
+
+(defn- write-manifest! [manifest-path {:keys [cid origin size put-status get-status id]}]
+  (let [record (ca/record-address (seed-manifest manifest-path id)
                                   {:bundle-cid cid :origin origin :size size
                                    :put-status put-status :get-status get-status
                                    :at (.toISOString (js/Date.))})]
@@ -73,12 +86,12 @@
     (println "manifest" manifest-path)
     (println "embed-url" (ca/embed-url cid))))
 
-(defn- after-verify [{:keys [cid origin size manifest-path put]} v]
+(defn- after-verify [{:keys [cid origin size manifest-path id put]} v]
   (println "get" (:status v))
   (println "verified" (:verified? v))
   (if-not (:verified? v)
     (do (println "ARCHIVED BYTES DIFFER — derived" (:derived v)) (exit! 1))
-    (write-manifest! manifest-path {:cid cid :origin origin :size size
+    (write-manifest! manifest-path {:cid cid :origin origin :size size :id id
                                     :put-status (:status put) :get-status (:status v)})))
 
 (defn- after-put [{:keys [origin cid] :as ctx} put]
@@ -116,7 +129,8 @@
           (-> (archive/put! {:origin origin :cid cid :octets octets
                              :token token :content-type content-type})
               (.then (fn [put] (after-put {:origin origin :cid cid :size size
-                                           :manifest-path manifest-path}
+                                           :manifest-path manifest-path
+                                           :id (flag argv "--id")}
                                           put)))
               (.catch (fn [e] (println "ERROR" (str e)) (exit! 2)))))))))
 
@@ -126,7 +140,7 @@
   (if (ca/parse-cid target)
     target
     (when (.existsSync fs target)
-      (:kotoba.app/bundle-cid (read-edn target)))))
+      (:bundle-cid (ca/file-address-of (read-edn target))))))
 
 (defn cmd-verify [argv]
   (let [target (first (positionals argv))
@@ -156,9 +170,10 @@
         rows (for [p paths
                    :let [m (try (read-edn p) (catch :default e {::unreadable (str e)}))]]
                {:path p
-                :unreadable (::unreadable m)
-                :addressed? (and (map? m) (not (::unreadable m)) (ca/addressed? m))
-                :problems (when (and (map? m) (not (::unreadable m))) (ca/problems m))})
+                :unreadable (or (::unreadable m)
+                                (when (empty? (ca/entities m)) "no application entity"))
+                :addressed? (ca/file-addressed? m)
+                :problems (some-> (first (ca/entities m)) ca/problems)})
         scanned (count rows)
         unreadable (count (filter :unreadable rows))
         addressed (count (filter :addressed? rows))]

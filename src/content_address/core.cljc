@@ -149,6 +149,20 @@
   "Manifest attributes that carry a content address, most specific first."
   [:kotoba.app/bundle-cid :kotoba.graph/cid])
 
+(defn entities
+  "The application entities inside a parsed `kotoba.app.edn`.
+
+  Two shapes are both in use and both correct: a bare manifest map, and the
+  tx-data vector `[{:db/id -1 …}]` the EDN-only docs convention writes.
+  Measured 2026-08-15: 105 files are maps and 50 are tx-data vectors. A
+  reader that understands one shape reports the other as unreadable — which
+  is the same silence-counted-as-a-verdict this namespace exists to stop."
+  [parsed]
+  (cond
+    (map? parsed) [parsed]
+    (sequential? parsed) (filterv map? parsed)
+    :else []))
+
 (defn address-of
   "The content address a `kotoba.app.edn` manifest carries, if any."
   [manifest]
@@ -171,6 +185,16 @@
   changing."
   [manifest]
   (some? (address-of manifest)))
+
+(defn file-addressed?
+  "Does a parsed `kotoba.app.edn` — either shape — carry a content address?"
+  [parsed]
+  (boolean (some addressed? (entities parsed))))
+
+(defn file-address-of
+  "The first content address in a parsed `kotoba.app.edn`, either shape."
+  [parsed]
+  (some address-of (entities parsed)))
 
 (defn problems
   "Everything wrong with the addressing in a manifest. Empty vector = fine.
