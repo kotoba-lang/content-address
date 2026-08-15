@@ -21,4 +21,16 @@
         :extra-deps {io.github.kotoba-lang/amu
                      {:git/url "https://github.com/kotoba-lang/amu.git"
                       :git/sha "b88cb6c0f276ab8f98bd2b62adeef0ae5ec7ffcd"}}
-        :main-opts ["-m" "emit-kir"]}}}
+        :main-opts ["-m" "emit-kir"]}
+  ;; Also dev-only: the fleet's naming plane. One IPNS name over a catalog
+  ;; of addressed appviews, rather than one key per app — see the tool's ns
+  ;; docstring. Publishing a name is an operator action, not something an
+  ;; appview build step does, so this is not a consumer dependency either.
+  :catalog {:extra-paths ["tools"]
+            :extra-deps {io.github.kotoba-lang/tech-ipfs-specs-ipns
+                         {:git/url "https://github.com/kotoba-lang/tech-ipfs-specs-ipns.git"
+                          :git/sha "bca7ca43265a1c50d93e4b678c94989d15a29b51"}
+                         io.github.kotoba-lang/io-libp2p-specs-kad-dht
+                         {:git/url "https://github.com/kotoba-lang/io-libp2p-specs-kad-dht.git"
+                          :git/sha "cf46f49a6abb12165b0be16509c8c6be967a6526"}}
+            :main-opts ["-m" "publish-catalog"]}}}
