@@ -192,7 +192,8 @@
         ;; update — routers are entitled to keep the one they have.
         sequence (or (some-> (second (drop-while #(not= "--sequence" %) args))
                              Long/parseLong)
-                     (some-> (when (.exists (io/file out)) (edn/read-string (slurp out)))
+                     (some-> (let [ptr (str/replace out #"\.edn$" ".pointer.edn")]
+                               (when (.exists (io/file ptr)) (edn/read-string (slurp ptr))))
                              :kotoba.catalog/sequence
                              inc)
                      1)
@@ -238,13 +239,23 @@
                   (println "RESOLVED VALUE IS NOT THIS CID" {:want (str "/ipfs/" cid)
                                                              :got value})
                   (System/exit 1))
-                (spit out (str (pr-str (assoc c
-                                              :kotoba.catalog/sequence sequence
-                                              :kotoba.catalog/cid cid
-                                              :kotoba.catalog/name nm
-                                              :kotoba.catalog/ipns-url (str "ipns://" nm)
-                                              :kotoba.catalog/embed-url (ca/embed-url cid)))
-                               "\n"))
+                ;; Two files on purpose. `out` holds the catalog EXACTLY as
+                ;; archived, so anyone can re-hash it and get the CID back —
+                ;; a committed copy that had the pointer folded into it would
+                ;; be a document that cannot verify itself. The pointer is a
+                ;; sibling.
+                (spit out (String. (byte-array (map unchecked-byte octets)) "UTF-8"))
+                (spit (str/replace out #"\.edn$" ".pointer.edn")
+                      (str (pr-str {:kotoba.catalog/cid cid
+                                    :kotoba.catalog/name nm
+                                    :kotoba.catalog/sequence sequence
+                                    :kotoba.catalog/count (:kotoba.catalog/count c)
+                                    :kotoba.catalog/at (:kotoba.catalog/at c)
+                                    :kotoba.catalog/ipns-url (str "ipns://" nm)
+                                    :kotoba.catalog/embed-url (ca/embed-url cid)
+                                    :kotoba.catalog/archive (ca/archive-url
+                                                             archive/default-origin cid)})
+                           "\n"))
                 (println "resolved" value)
                 (println "wrote" out)))))))
     (shutdown-agents)))
