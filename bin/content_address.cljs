@@ -1,0 +1,187 @@
+(ns content-address
+  "CLI: give a document an identity, archive it, and check that it stayed true.
+
+    nbb --classpath src bin/content_address.cljs address <file>
+    nbb --classpath src bin/content_address.cljs publish <file> --manifest <path>
+    nbb --classpath src bin/content_address.cljs verify  <cid|manifest-path>
+    nbb --classpath src bin/content_address.cljs audit   <manifest-path>...
+
+  Exit codes are three-valued on purpose: 0 answered yes, 1 answered no,
+  2 could not answer. A check that cannot run must not look like a pass."
+  (:require ["node:fs" :as fs]
+            [clojure.edn :as edn]
+            [clojure.string :as str]
+            [content-address.archive :as archive]
+            [content-address.core :as ca]
+            [content-address.digest :as digest]))
+
+(defn- exit! [code] (set! (.-exitCode js/process) code))
+
+(def ^:private boolean-flags #{"--dry-run"})
+
+(defn- flag [argv name]
+  (second (drop-while #(not= name %) argv)))
+
+(defn- switch? [argv name] (boolean (some #{name} argv)))
+
+(defn- positionals
+  "Values that are not a flag and not a flag's value.
+
+  ⚠ Callers pass `<file>` first; this does not depend on that, because the
+  workspace has already lost time to a gate that read `--min 10 .` as a
+  directory named \"10\"."
+  [argv]
+  (loop [[a & more] argv out []]
+    (cond
+      (nil? a) out
+      (str/starts-with? a "--") (if (boolean-flags a) (recur more out) (recur (rest more) out))
+      :else (recur more (conj out a)))))
+
+(defn- script-args
+  "nbb does not always hand `*command-line-args*` to a script file."
+  []
+  (if (seq *command-line-args*)
+    (vec *command-line-args*)
+    (let [argv (vec (js->clj (.-argv js/process)))
+          i (first (keep-indexed (fn [i v]
+                                   (when (str/ends-with? v "content_address.cljs") i))
+                                 argv))]
+      (if (some? i) (subvec argv (inc i)) []))))
+
+(defn- read-edn [path] (edn/read-string (.readFileSync fs path "utf8")))
+
+(defn- write-edn! [path v] (.writeFileSync fs path (str (pr-str v) "\n")))
+
+;; ------------------------------------------------------------------ address
+
+(defn cmd-address [argv]
+  (if-let [file (first (positionals argv))]
+    (let [{:keys [cid size]} (archive/address (digest/->octets (.readFileSync fs file)))]
+      (println "cid" cid)
+      (println "size" size)
+      (println "embed-url" (ca/embed-url cid)))
+    (do (println "usage: address <file>") (exit! 2))))
+
+;; ------------------------------------------------------------------ publish
+
+(defn- write-manifest! [manifest-path {:keys [cid origin size put-status get-status]}]
+  (let [record (ca/record-address (read-edn manifest-path)
+                                  {:bundle-cid cid :origin origin :size size
+                                   :put-status put-status :get-status get-status
+                                   :at (.toISOString (js/Date.))})]
+    (write-edn! manifest-path record)
+    (println "manifest" manifest-path)
+    (println "embed-url" (ca/embed-url cid))))
+
+(defn- after-verify [{:keys [cid origin size manifest-path put]} v]
+  (println "get" (:status v))
+  (println "verified" (:verified? v))
+  (if-not (:verified? v)
+    (do (println "ARCHIVED BYTES DIFFER — derived" (:derived v)) (exit! 1))
+    (write-manifest! manifest-path {:cid cid :origin origin :size size
+                                    :put-status (:status put) :get-status (:status v)})))
+
+(defn- after-put [{:keys [origin cid] :as ctx} put]
+  (println "put" (:status put))
+  (if-not (contains? #{200 201} (:status put))
+    (do (println "ARCHIVE REFUSED" (:body put)) (exit! 1) (js/Promise.resolve nil))
+    (.then (archive/verify {:origin origin :cid cid})
+           (fn [v] (after-verify (assoc ctx :put put) v)))))
+
+(defn cmd-publish [argv]
+  (let [file (first (positionals argv))
+        manifest-path (flag argv "--manifest")
+        origin (or (flag argv "--origin") archive/default-origin)
+        token (aget (.-env js/process) (or (flag argv "--token-env")
+                                           "KOTOBASE_ARCHIVE_TOKEN"))
+        content-type (or (flag argv "--content-type") "text/html; charset=utf-8")
+        dry? (switch? argv "--dry-run")]
+    (cond
+      (not file) (do (println "usage: publish <file> --manifest <path>") (exit! 2))
+      (not manifest-path) (do (println "publish needs --manifest") (exit! 2))
+      :else
+      (let [{:keys [cid size octets]} (archive/address (digest/->octets (.readFileSync fs file)))
+            refusals (archive/refusals {:cid cid :size size :token (if dry? "dry" token)})]
+        (println "document" file)
+        (println "cid" cid)
+        (println "size" size)
+        (cond
+          (seq refusals)
+          (do (doseq [r refusals] (println "REFUSED" (pr-str r))) (exit! 1))
+
+          dry?
+          (println "dry-run — nothing sent")
+
+          :else
+          (-> (archive/put! {:origin origin :cid cid :octets octets
+                             :token token :content-type content-type})
+              (.then (fn [put] (after-put {:origin origin :cid cid :size size
+                                           :manifest-path manifest-path}
+                                          put)))
+              (.catch (fn [e] (println "ERROR" (str e)) (exit! 2)))))))))
+
+;; ------------------------------------------------------------------- verify
+
+(defn- cid-of-target [target]
+  (if (ca/parse-cid target)
+    target
+    (when (.existsSync fs target)
+      (:kotoba.app/bundle-cid (read-edn target)))))
+
+(defn cmd-verify [argv]
+  (let [target (first (positionals argv))
+        origin (or (flag argv "--origin") archive/default-origin)
+        cid (some-> target cid-of-target)]
+    (cond
+      (not target) (do (println "usage: verify <cid|manifest-path>") (exit! 2))
+      (not cid) (do (println "no content address to verify in" target)
+                    (println "UNANSWERED")
+                    (exit! 2))
+      :else
+      (-> (archive/verify {:origin origin :cid cid})
+          (.then (fn [v]
+                   (println "cid" cid)
+                   (println "location" (:url v))
+                   (println "status" (:status v))
+                   (println "size" (:size v))
+                   (println "derived" (:derived v))
+                   (println "verified" (:verified? v))
+                   (when-not (:verified? v) (exit! 1))))
+          (.catch (fn [e] (println "UNANSWERED" (str e)) (exit! 2)))))))
+
+;; -------------------------------------------------------------------- audit
+
+(defn cmd-audit [argv]
+  (let [paths (positionals argv)
+        rows (for [p paths
+                   :let [m (try (read-edn p) (catch :default e {::unreadable (str e)}))]]
+               {:path p
+                :unreadable (::unreadable m)
+                :addressed? (and (map? m) (not (::unreadable m)) (ca/addressed? m))
+                :problems (when (and (map? m) (not (::unreadable m))) (ca/problems m))})
+        scanned (count rows)
+        unreadable (count (filter :unreadable rows))
+        addressed (count (filter :addressed? rows))]
+    (doseq [r rows]
+      (println (if (:unreadable r) "UNREADABLE" (if (:addressed? r) "ADDRESSED " "LOCATED   "))
+               (:path r)
+               (if (seq (:problems r))
+                 (str/join "," (map (comp name :problem) (:problems r)))
+                 "")))
+    (println (str "SCANNED\t" scanned))
+    (println (str "ADDRESSED\t" addressed))
+    (println (str "UNREADABLE\t" unreadable))
+    (cond
+      (zero? scanned) (do (println "UNANSWERED — nothing was scanned") (exit! 2))
+      (pos? unreadable) (exit! 2)
+      (< addressed scanned) (exit! 1))))
+
+;; --------------------------------------------------------------------- main
+
+(let [[cmd & argv] (script-args)]
+  (case cmd
+    "address" (cmd-address argv)
+    "publish" (cmd-publish argv)
+    "verify" (cmd-verify argv)
+    "audit" (cmd-audit argv)
+    (do (println "commands: address | publish | verify | audit") (exit! 2))))
