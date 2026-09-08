@@ -12,7 +12,7 @@
 
   ⚠ `PUT /ipfs/{cid}` accepts raw CIDv1 only. A dag-cbor identity must be
   archived under the raw CID of the same bytes — one object, two codecs."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [content-address.core :as ca]
             [content-address.digest :as digest])
   #?(:clj (:import [java.net URI]

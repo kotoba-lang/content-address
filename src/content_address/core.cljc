@@ -19,7 +19,7 @@
 
   ⚠ IPLD paths (`/ipld/{cid}/a/b`) are resolution paths through a DAG, not
   locations. \"Not path-based\" constrains identity, not traversal."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ---------------------------------------------------------------- octets
 
