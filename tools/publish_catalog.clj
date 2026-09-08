@@ -36,7 +36,7 @@
   kagi item `cloud-itonami-appviews-catalog` (compartment `personal`)."
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [content-address.archive :as archive]
             [content-address.core :as ca]
             [content-address.digest :as digest]
