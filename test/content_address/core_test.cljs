@@ -2,7 +2,7 @@
   "Vectors here are real: they come from objects kotobase.net actually holds
   and from the published `cloud.itonami.app` manifest. A test that only
   round-trips its own output proves the code agrees with itself."
-  (:require [cljs.test :refer [deftest is testing]]
+  (:require [kotoba.lang.text] [cljs.test :refer [deftest is testing]]
             [content-address.archive :as archive]
             [content-address.core :as ca]
             [content-address.digest :as digest]))
@@ -161,8 +161,8 @@
     (testing "no :kotoba.* attribute names a host"
       (is (empty? (filter (fn [[k v]]
                             (and (keyword? k)
-                                 (some-> (namespace k) (clojure.string/starts-with? "kotoba."))
+                                 (some-> (namespace k) (kotoba.lang.text/starts-with? "kotoba."))
                                  (string? v)
-                                 (clojure.string/includes? v "kotobase.net")))
+                                 (kotoba.lang.text/includes? v "kotobase.net")))
                           m))))
-    (is (clojure.string/includes? (get-in m [:published :archive]) "kotobase.net"))))
+    (is (kotoba.lang.text/includes? (get-in m [:published :archive]) "kotobase.net"))))

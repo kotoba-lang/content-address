@@ -10,7 +10,7 @@
   2 could not answer. A check that cannot run must not look like a pass."
   (:require ["node:fs" :as fs]
             [clojure.edn :as edn]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [content-address.archive :as archive]
             [content-address.core :as ca]
             [content-address.digest :as digest]))
