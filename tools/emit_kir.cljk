@@ -9,7 +9,7 @@
   pass every parity test ever written, because a host copy is exactly what
   those tests compare against.
 
-    clojure -M:kir
+    kbb -M:kir
 
   Regenerate whenever the .kotoba changes; `oracle_test.cljs` fails if the
   shipped artifact and the two implementations stop agreeing."

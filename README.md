@@ -28,17 +28,17 @@ ADR-2608157000 for why apps in this workspace are built this way.
 
 ```bash
 # What is this document's identity? (pure, no network)
-nbb --classpath src bin/content_address.cljk address dist/index.html
+kbb --backend sci --classpath src bin/content_address.cljk address dist/index.html
 
 # Publish: address → archive PUT → GET back → compare bytes → record it
-KOTOBASE_ARCHIVE_TOKEN=… nbb --classpath src bin/content_address.cljk \
+KOTOBASE_ARCHIVE_TOKEN=… kbb --backend sci --classpath src bin/content_address.cljk \
   publish dist/index.html --manifest kotoba.app.edn
 
 # Is the address still true? (fetches and re-derives)
-nbb --classpath src bin/content_address.cljk verify kotoba.app.edn
+kbb --backend sci --classpath src bin/content_address.cljk verify kotoba.app.edn
 
 # Which manifests identify by content, and which only by location?
-nbb --classpath src bin/content_address.cljk audit $(git ls-files '*kotoba.app.edn')
+kbb --backend sci --classpath src bin/content_address.cljk audit $(git ls-files '*kotoba.app.edn')
 ```
 
 From Clojure/ClojureScript:
@@ -98,7 +98,7 @@ itself:
 # 18 tests / 270 assertions, no network. The interpreter paths are not
 # optional — see "The decision core" below for why the runner refuses to
 # start without them.
-nbb --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
+kbb --backend sci --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
     test/run_tests.cljk
 ```
 
@@ -126,10 +126,10 @@ while something fails when the halves disagree:
 ```bash
 # 18 tests / 270 assertions. Fails to LOAD without the interpreter,
 # rather than quietly running the pure tests alone.
-nbb --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
+kbb --backend sci --classpath src:test:resources:../kotoba-kir/src:../kotoba-hir/src \
     test/run_tests.cljk
 
-clojure -M:kir      # regenerate the artifact after editing the .kotoba
+kbb -M:kir      # regenerate the artifact after editing the .kotoba
 ```
 
 Checked by breaking it: `digest-start` 7 → 8, recompiled, 34 failures;

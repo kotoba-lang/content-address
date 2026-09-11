@@ -1,10 +1,10 @@
 (ns content-address
   "CLI: give a document an identity, archive it, and check that it stayed true.
 
-    nbb --classpath src bin/content_address.cljk address <file>
-    nbb --classpath src bin/content_address.cljk publish <file> --manifest <path>
-    nbb --classpath src bin/content_address.cljk verify  <cid|manifest-path>
-    nbb --classpath src bin/content_address.cljk audit   <manifest-path>...
+    kbb --backend sci --classpath src bin/content_address.cljk address <file>
+    kbb --backend sci --classpath src bin/content_address.cljk publish <file> --manifest <path>
+    kbb --backend sci --classpath src bin/content_address.cljk verify  <cid|manifest-path>
+    kbb --backend sci --classpath src bin/content_address.cljk audit   <manifest-path>...
 
   Exit codes are three-valued on purpose: 0 answered yes, 1 answered no,
   2 could not answer. A check that cannot run must not look like a pass."

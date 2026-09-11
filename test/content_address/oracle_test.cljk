@@ -5,7 +5,7 @@
   Run with the interpreter on the classpath — the compiler is never needed
   here, only the artifact `tools/emit_kir.cljk` produced:
 
-    nbb --classpath src:test:resources:../kotoba-kir/src test/run_tests.cljk
+    kbb --backend sci --classpath src:test:resources:../kotoba-kir/src test/run_tests.cljk
 
   Two implementations of one decision is a mirror, and a mirror is only
   honest while something fails when the halves disagree. That is this file.
