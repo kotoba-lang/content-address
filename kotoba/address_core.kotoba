@@ -21,7 +21,7 @@
 ;; over the same bytes are identical from character eight onward, and why
 ;; `same-object?` can compare suffixes instead of decoding.
 ;;
-;; Parity: test/content_address/oracle_test.cljs runs this artifact and
+;; Parity: test/content_address/oracle_test.cljk runs this artifact and
 ;; `content-address.core` over the same inputs and requires the same answers.
 
 (defn cid-length [] :i64 59)
