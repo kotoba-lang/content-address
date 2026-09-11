@@ -3,7 +3,7 @@
 
   The oracle parity test needs the KIR interpreter and the shipped artifact:
 
-    nbb --classpath src:test:resources:../kotoba-kir/src test/run_tests.cljs
+    nbb --classpath src:test:resources:../kotoba-kir/src test/run_tests.cljk
 
   Without kotoba-kir on the classpath this namespace fails to load rather
   than quietly running the pure tests alone — a parity test that silently
