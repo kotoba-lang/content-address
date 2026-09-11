@@ -1,7 +1,7 @@
 (ns publish-catalog
   "Give a fleet of addressed appviews one mutable name.
 
-    clojure -M:catalog <manifest-path>... [--out catalog.edn] [--dry-run]
+    kbb -M:catalog <manifest-path>... [--out catalog.edn] [--dry-run]
 
   A content address never changes, which is the point and also the problem:
   something has to say which address is *current*. IPNS is that something —
