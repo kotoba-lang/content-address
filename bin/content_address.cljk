@@ -44,7 +44,7 @@
     (vec *command-line-args*)
     (let [argv (vec (js->clj (.-argv js/process)))
           i (first (keep-indexed (fn [i v]
-                                   (when (str/ends-with? v "content_address.cljs") i))
+                                   (when (str/ends-with? v "content_address.cljk") i))
                                  argv))]
       (if (some? i) (subvec argv (inc i)) []))))
 
