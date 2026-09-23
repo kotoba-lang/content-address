@@ -40,7 +40,13 @@
   (is (= 32 (count (digest/sha256 "hello world"))))
   (testing "the same bytes address the same, whoever holds them"
     (is (= (ca/cid-string :raw (digest/sha256 "hello world"))
-           (ca/cid-string :raw (digest/sha256 (digest/->octets "hello world")))))))
+           (ca/cid-string :raw (digest/sha256 (digest/->octets "hello world"))))))
+  (testing "a string / platform bytes hash directly; the digest is the octets' digest"
+    (doseq [s ["" "hello world" "新幹線 <p>&amp; ✓</p>"]]
+      (let [octets (digest/->octets s)]
+        (is (= (digest/sha256 octets) (digest/sha256 s)) (str "string: " s))
+        (is (= (digest/sha256 octets) (digest/sha256 (digest/->bytes octets))) (str "bytes: " s))
+        (is (= (count octets) (digest/size s)) (str "size: " s))))))
 
 (deftest base32-round-trips
   (doseq [s ["" "f" "fo" "foo" "foob" "fooba" "foobar"]]
