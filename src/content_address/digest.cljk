@@ -30,15 +30,29 @@
      :cljs (js/Buffer.from (clj->js (vec octets)))))
 
 (defn sha256
-  "sha2-256 of `x` as a 32-element octet vector."
+  "sha2-256 of `x` as a 32-element octet vector.
+
+  A string or platform byte container goes to the hash as it is: routing it
+  through `->octets` / `->bytes` first builds a persistent vector of every
+  byte and a second buffer from it, which costs O(n) allocations per call
+  (a 6 KB page, hashed per request by shinkansen's host, measured
+  2026-09-23). Octet vectors still take the conversion; the answer is the
+  same digest either way (core_test pins string = octets = bytes)."
   [x]
   #?(:clj (->octets (.digest (MessageDigest/getInstance "SHA-256")
-                             ^bytes (->bytes (->octets x))))
-     :cljs (->octets (-> (crypto/createHash "sha256")
-                         (.update (->bytes (->octets x)))
-                         (.digest)))))
+                             ^bytes (cond
+                                      (string? x) (.getBytes ^String x StandardCharsets/UTF_8)
+                                      (bytes? x) x
+                                      :else (->bytes (->octets x)))))
+     :cljs (let [h (crypto/createHash "sha256")]
+             (cond
+               (string? x) (.update h x "utf8")
+               (instance? js/Uint8Array x) (.update h x)
+               :else (.update h (->bytes (->octets x))))
+             (->octets (.digest h)))))
 
 (defn size
   "Byte length of `x` — what the archive cap is measured against."
   [x]
-  (count (->octets x)))
+  #?(:clj (if (string? x) (alength (.getBytes ^String x StandardCharsets/UTF_8)) (count (->octets x)))
+     :cljs (if (string? x) (js/Buffer.byteLength x "utf8") (count (->octets x)))))
