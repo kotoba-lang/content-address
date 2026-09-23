@@ -54,6 +54,13 @@
            (ca/base32-decode (ca/base32-encode (digest/->octets s))))
         (str "round trip: " s))))
 
+(deftest base32-matches-rfc4648-vectors
+  ;; RFC 4648 §10, lower-cased and unpadded (multibase `b`) — pinned against
+  ;; the RFC, not against our own decoder
+  (doseq [[s want] [["" ""] ["f" "my"] ["fo" "mzxq"] ["foo" "mzxw6"] ["foob" "mzxw6yq"]
+                    ["fooba" "mzxw6ytb"] ["foobar" "mzxw6ytboi"]]]
+    (is (= want (ca/base32-encode (digest/->octets s))) (str "rfc4648: " s))))
+
 (deftest cid-parses-back
   (let [parsed (ca/parse-cid hello-world-cid)]
     (is (= :raw (:codec parsed)))

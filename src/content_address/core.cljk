@@ -28,24 +28,39 @@
 (def ^:private alphabet-index
   (into {} (map-indexed (fn [i c] [c i]) alphabet)))
 
+(def ^:private pow32
+  "32^k for k = 0..7 — the place values of the eight characters a 5-octet
+  group encodes to. The largest group value is 2^40 - 1, exact in a double."
+  [1 32 1024 32768 1048576 33554432 1073741824 34359738368])
+
 (defn base32-encode
-  "RFC 4648 base32, lower case, no padding — the multibase `b` body."
+  "RFC 4648 base32, lower case, no padding — the multibase `b` body.
+
+  Five octets at a time: a group is a 40-bit number and its characters are
+  its base-32 digits, so no per-bit loop and no intermediate vectors. A short
+  last group (k octets) is zero-filled and yields ceil(8k/5) characters —
+  the same unpadded tail the bitwise definition gives. The earlier bit-at-a-
+  time loop cost 623 us for a 36-octet CID under kbb/sci (2026-09-23), 16x the
+  sha2-256 it encodes; the output is the same (core_test + oracle_test)."
   [octets]
-  (let [v (vec octets)]
-    (loop [i 0 acc 0 bits 0 out []]
-      (if (< i (count v))
-        (let [acc (+ (* acc 256) (nth v i))
-              bits (+ bits 8)
-              [acc bits out] (loop [a acc b bits o out]
-                               (if (>= b 5)
-                                 (recur a (- b 5)
-                                        (conj o (nth alphabet
-                                                     (bit-and (bit-shift-right a (- b 5)) 31))))
-                                 [(bit-and a (dec (bit-shift-left 1 b))) b o]))]
-          (recur (inc i) acc bits out))
-        (apply str (if (pos? bits)
-                     (conj out (nth alphabet (bit-and (bit-shift-left acc (- 5 bits)) 31)))
-                     out))))))
+  (let [v (vec octets)
+        n (count v)
+        #?@(:clj [sb (StringBuilder.)] :cljs [sb #js []])]
+    (loop [i 0]
+      (when (< i n)
+        (let [k (min 5 (- n i))
+              x (loop [j 0 x 0]
+                  (if (< j 5)
+                    (recur (inc j) (+ (* x 256) (if (< j k) (nth v (+ i j)) 0)))
+                    x))
+              chars (quot (+ (* 8 k) 4) 5)]
+          (loop [c 0]
+            (when (< c chars)
+              (let [ch (nth alphabet (mod (quot x (nth pow32 (- 7 c))) 32))]
+                #?(:clj (.append sb ch) :cljs (.push sb ch)))
+              (recur (inc c))))
+          (recur (+ i 5)))))
+    #?(:clj (.toString sb) :cljs (.join sb ""))))
 
 (defn base32-decode
   "Inverse of `base32-encode`. Returns a vector of octets, or nil if the
