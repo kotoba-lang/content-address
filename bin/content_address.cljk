@@ -9,7 +9,7 @@
   Exit codes are three-valued on purpose: 0 answered yes, 1 answered no,
   2 could not answer. A check that cannot run must not look like a pass."
   (:require ["node:fs" :as fs]
-            [clojure.edn :as edn]
+            [kotoba.lang.edn :as edn]
             [kotoba.lang.text :as str]
             [content-address.archive :as archive]
             [content-address.core :as ca]
