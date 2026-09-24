@@ -14,7 +14,7 @@
   interesting happens."
   (:require ["node:fs" :as fs]
             [cljs.test :refer [deftest is testing]]
-            [clojure.edn :as edn]
+            [kotoba.lang.edn :as edn]
             [content-address.archive :as archive]
             [content-address.core :as ca]
             [kotoba.kir :as ir]))

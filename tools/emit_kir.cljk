@@ -13,8 +13,8 @@
 
   Regenerate whenever the .kotoba changes; `oracle_test.cljs` fails if the
   shipped artifact and the two implementations stop agreeing."
-  (:require [clojure.java.io :as io]
-            [clojure.pprint :as pp]
+  (:require [kotoba.io :as io]
+            [kotoba.pprint :as pp]
             [kotoba.compiler.core :as compiler]))
 
 (def target
