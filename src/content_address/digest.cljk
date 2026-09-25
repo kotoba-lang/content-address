@@ -5,15 +5,16 @@
   addressing code. This namespace is the narrow place where a JVM byte array
   or a Node Buffer becomes one."
   #?(:cljs (:require ["node:crypto" :as crypto]))
-  #?(:clj (:import [java.nio.charset StandardCharsets]
-                   [java.security MessageDigest])))
+  #?(:clj (:import
+                   [java.security MessageDigest]))
+  (:require [kotoba.bytes :as kbytes]))
 
 (defn ->octets
   "Platform bytes → vector of unsigned ints. Accepts a string as UTF-8."
   [x]
   #?(:clj (cond
             (nil? x) []
-            (string? x) (->octets (.getBytes ^String x StandardCharsets/UTF_8))
+            (string? x) (->octets (kbytes/utf8-bytes ^String x))
             (bytes? x) (mapv #(bit-and % 0xff) x)
             (sequential? x) (mapv #(bit-and % 0xff) x)
             :else (throw (ex-info "not bytes" {:class (class x)})))
@@ -41,7 +42,7 @@
   [x]
   #?(:clj (->octets (.digest (MessageDigest/getInstance "SHA-256")
                              ^bytes (cond
-                                      (string? x) (.getBytes ^String x StandardCharsets/UTF_8)
+                                      (string? x) (kbytes/utf8-bytes ^String x)
                                       (bytes? x) x
                                       :else (->bytes (->octets x)))))
      :cljs (let [h (crypto/createHash "sha256")]
@@ -54,5 +55,5 @@
 (defn size
   "Byte length of `x` — what the archive cap is measured against."
   [x]
-  #?(:clj (if (string? x) (alength (.getBytes ^String x StandardCharsets/UTF_8)) (count (->octets x)))
+  #?(:clj (if (string? x) (alength (kbytes/utf8-bytes ^String x)) (count (->octets x)))
      :cljs (if (string? x) (js/Buffer.byteLength x "utf8") (count (->octets x)))))
