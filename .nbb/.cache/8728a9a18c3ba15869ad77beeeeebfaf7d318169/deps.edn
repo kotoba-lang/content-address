@@ -1,0 +1,1 @@
+{:deps {io.github.kotoba-lang/bytes {:git/sha "d5259f35ab7c4f5a66e63ca29ed4dcf7ba3f1ac5"}, io.github.kotoba-lang/io {:git/sha "1b60ca825c1e705bd195f857ca4549133653a9f3"}, io.github.kotoba-lang/edn {:git/sha "79dba32c8892058842c57783f06a2dfe4601aeb0"}}}

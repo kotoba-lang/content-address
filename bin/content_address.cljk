@@ -11,6 +11,7 @@
   (:require ["node:fs" :as fs]
             [kotoba.lang.edn :as edn]
             [kotoba.lang.text :as str]
+            [content-address.app-schema :as app-schema]
             [content-address.archive :as archive]
             [content-address.core :as ca]
             [content-address.digest :as digest]))
@@ -173,19 +174,23 @@
                 :unreadable (or (::unreadable m)
                                 (when (empty? (ca/entities m)) "no application entity"))
                 :addressed? (ca/file-addressed? m)
-                :problems (some-> (first (ca/entities m)) ca/problems)})
+                :schema (when-not (::unreadable m) (app-schema/file-schema-problems m))
+                :problems (when-not (::unreadable m)
+                            (some-> (first (ca/entities m)) ca/problems))})
         scanned (count rows)
         unreadable (count (filter :unreadable rows))
-        addressed (count (filter :addressed? rows))]
+        addressed (count (filter :addressed? rows))
+        schema-findings (reduce + 0 (map #(count (:schema %)) rows))]
     (doseq [r rows]
       (println (if (:unreadable r) "UNREADABLE" (if (:addressed? r) "ADDRESSED " "LOCATED   "))
                (:path r)
-               (if (seq (:problems r))
-                 (str/join "," (map (comp name :problem) (:problems r)))
-                 "")))
+               (str/join ","
+                         (concat (map (comp name :problem) (:problems r))
+                                 (map (comp name :problem) (:schema r))))))
     (println (str "SCANNED\t" scanned))
     (println (str "ADDRESSED\t" addressed))
     (println (str "UNREADABLE\t" unreadable))
+    (println (str "SCHEMA-FINDINGS\t" schema-findings))
     (cond
       (zero? scanned) (do (println "UNANSWERED — nothing was scanned") (exit! 2))
       (pos? unreadable) (exit! 2)
