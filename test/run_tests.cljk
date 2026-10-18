@@ -9,6 +9,7 @@
   than quietly running the pure tests alone — a parity test that silently
   did not run is the failure mode this repository keeps guarding against."
   (:require [cljs.test :refer [run-tests]]
+            [content-address.app-schema-test]
             [content-address.core-test]
             [content-address.oracle-test]))
 
@@ -18,4 +19,4 @@
   (when-not (cljs.test/successful? m)
     (set! (.-exitCode js/process) 1)))
 
-(run-tests 'content-address.core-test 'content-address.oracle-test)
+(run-tests 'content-address.app-schema-test 'content-address.core-test 'content-address.oracle-test)
